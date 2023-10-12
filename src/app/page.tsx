@@ -1,14 +1,128 @@
 'use client';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
-import { Listbox } from '@headlessui/react';
+import { EmailModal } from '@/components/modal/EmailModal';
+import { CalendlyEmbed } from '@/components/CalendlyEmbed';
+import { CustomerModal } from '@/components/modal/CustomerModal';
+import { QuestionsModal } from '@/components/modal/QuestionsModal';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { SubmitHandler, useForm } from 'react-hook-form';
 
 
+export type ProspectForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  knownBy: string;
+  waterDrinking: string[];
+  filtrationSystem: string[];
+  heardOfTapWaterDisadvantages: boolean;
+  alcalineWaterKnown: boolean;
+  otherThingsToSay: string;
+
+}
+
+function stringToBoolean(stringValue: string) {
+  return stringValue === 'true';
+}
 export default function Home() {
-  const sources = ['Réseaux sociaux', 'Site', 'Mailing', 'Google', 'Ami'];
-  const [selectedSource, setSelectedSource] = useState("");
   const [showMailModal, setShowMailModal] = useState(false);
   const [showAppointmentModalStep, setShowAppointmentModalStep] = useState(0); // 0 for not showing, 1 for form, 2 for calendly
+  const [mailLoading, setMailLoading] = useState(false);
+  const [appointmentLoading, setAppointmentLoading] = useState(false);
+  const [selectedSource, setSelectedSource] = useState("");
+
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<ProspectForm>();
+
+  const handleMailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMailLoading(true);
+
+
+    const response = await fetch('/api/???', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        // email: values.email,
+      }),
+    });
+
+    if (response.ok) {
+      // If the response is okay, clear the form
+      setMailLoading(false);
+      toast.success('Votre message à bien été envoyé !', {
+        className: 'success-toast',
+      });
+    } else {
+      // If the response is not okay, show an error message
+      setMailLoading(false);
+      toast.error('Une erreur est survenue. Veuillez réessayer.', {
+        className: 'error-toast',
+      });
+    }
+  };
+
+  const appointmentSubmit: SubmitHandler<ProspectForm> = async (data: ProspectForm) => {
+    console.log('data appointmentSubmit =>', data);
+    setAppointmentLoading(true);
+    let {
+      firstName,
+      lastName,
+      email,
+      phone,
+      waterDrinking,
+      filtrationSystem,
+      heardOfTapWaterDisadvantages,
+      alcalineWaterKnown,
+      otherThingsToSay,
+    } = data;
+    if (!filtrationSystem) filtrationSystem = []
+
+    const response = await fetch('/api/prospect', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        email,
+        phone,
+        knownBy: selectedSource,
+        waterDrinking,
+        filtrationSystem,
+        heardOfTapWaterDisadvantages: stringToBoolean(heardOfTapWaterDisadvantages as unknown as string),
+        alcalineWaterKnown: stringToBoolean(alcalineWaterKnown as unknown as string),
+        otherThingsToSay,
+      }),
+    });
+
+    if (response.ok) {
+      // If the response is okay, clear the form
+      setAppointmentLoading(false);
+      toast.success('Votre message à bien été envoyé !', {
+        className: 'success-toast',
+      });
+      setShowAppointmentModalStep(3)
+    } else {
+      // If the response is not okay, show an error message
+      setAppointmentLoading(false);
+      toast.error('Une erreur est survenue. Veuillez réessayer.', {
+        className: 'error-toast',
+      });
+    }
+  };
+
   return (
     <main className='bg-gray-100 min-h-screen text-black'>
       {/* Module 1 - Accueil */}
@@ -22,7 +136,7 @@ export default function Home() {
           <h1 className='text-5xl text-white mb-12'>L'eau la vie</h1>
           <div className={'grid grid-cols-1 lg:grid-cols-2 gap-3'}>
             <div>
-            <p className='text-white mb-8'>Demandez notre guide sur l'eau</p>
+              <p className='text-white mb-8'>Demandez notre guide sur l'eau</p>
               <button
                 className='bg-secondary text-white px-4 py-2 rounded-full transform hover:scale-105 transition-transform'
                 onClick={() => setShowMailModal(true)}>
@@ -30,131 +144,66 @@ export default function Home() {
               </button>
             </div>
             <div>
-            <p className='text-white mb-8'>Bénéficier d'un rendez-vous gratuit de 30 minutes avec un spécialiste de l'eau</p>
+              <p className='text-white mb-8'>Bénéficier d'un rendez-vous gratuit de 30 minutes avec un spécialiste de
+                l'eau</p>
               <button
                 className='bg-secondary text-white px-4 py-2 rounded-full transform hover:scale-105 transition-transform'
                 onClick={() => setShowAppointmentModalStep(1)}
               >
-              Prendre rendez-vous
-            </button>
-          </div>
+                Prendre rendez-vous
+              </button>
+            </div>
           </div>
         </div>
       </section>
       {/*</section>*/}
 
-      {/* Email Modal */}
-      {showMailModal && (
-        <div
-          className="fixed top-0 left-0 w-full h-full flex items-center justify-center z-50"
-          onClick={() => setShowMailModal(false)} // Close modal when the overlay is clicked
-        >
-          <div
-            className="bg-white p-8 rounded-md w-96"
-            onClick={(e) => e.stopPropagation()}  // Prevent clicks on the modal from closing it
-          >
-            <h2 className="text-2xl mb-4">Entrez votre email</h2>
-            <form className="space-y-4">
-              <input className="p-2 w-full rounded border" type="email" placeholder="Email" />
-              <button className="w-full bg-secondary text-white p-2 rounded">Soumettre</button>
-            </form>
-            <button className="absolute top-2 right-2" onClick={() => setShowMailModal(false)}>&times;</button>
-          </div>
-        </div>
-      )}
+      <form className='mx-auto max-w-xl' onSubmit={handleMailSubmit}>
 
-      {/* Two Step Modal for Appointment */}
-      {showAppointmentModalStep === 1 && (
+        {/* Email Modal */}
+        {showMailModal && (
+          <EmailModal setShowMailModal={setShowMailModal} register={register} />
+        )}
+      </form>
+
+      <form className='mx-auto max-w-xl' onSubmit={handleSubmit(appointmentSubmit)} >
+
+        {/* Two Step Modal for Appointment */}
+        {showAppointmentModalStep === 1 && (
+          <CustomerModal watch={watch} setShowAppointmentModalStep={setShowAppointmentModalStep} register={register} selectedSource={selectedSource} setSelectedSource={setSelectedSource} />
+        )}
+
+        {showAppointmentModalStep === 2 && (
+          <QuestionsModal watch={watch} appointmentSubmit={appointmentSubmit} setShowAppointmentModalStep={setShowAppointmentModalStep} register={register} />
+        )}
+      </form>
+
+      {showAppointmentModalStep === 3 && (
         <div
-          className="fixed top-0 left-0 w-full h-full flex items-center justify-center z-50"
+          className='fixed top-0 left-0 w-full h-full flex items-center justify-center z-50'
           onClick={() => setShowAppointmentModalStep(0)} // Close modal when the overlay is clicked
         >
           <div
-            className="bg-white p-8 rounded-md w-96"
+            className='bg-white p-8 rounded-md w-96 md:w-1/2'
             onClick={(e) => e.stopPropagation()}  // Prevent clicks on the modal from closing it
           >
-            <h2 className="text-2xl mb-4">Prenez un rendez-vous</h2>
-            <button className="absolute top-2 right-2" onClick={() => setShowAppointmentModalStep(0)}>&times;</button>
+            <h2 className='text-2xl mb-4'>Prendre rendez-vous</h2>
+            <CalendlyEmbed />
+            <button onClick={() => setShowAppointmentModalStep(2)}
+                    className='w-1/2 bg-gray-200 text-gray-700 p-2 rounded mr-2'>Précédent
+            </button>
 
-            <form className="space-y-4">
-              <input className='p-2 w-full rounded border' type='text' placeholder='Prénom' />
-              <input className='p-2 w-full rounded border' type='text' placeholder='Nom' />
-              <input className='p-2 w-full rounded border' type='email' placeholder='Email' />
-              <input className='p-2 w-full rounded border' type='tel' placeholder='Téléphone' />
+            {/*<button className='w-full bg-secondary text-white p-2 rounded'>Demander mon rendez-vous</button>*/}
 
-              <div className="mt-4">
-                <Listbox value={selectedSource} onChange={setSelectedSource}>
-                  {({ open }) => (
-                    <div className="relative">
-                      <Listbox.Button className="block text-left w-full p-3 border rounded">
-                        {selectedSource === '' ? 'Vous nous avez connu via' : selectedSource}
-                      </Listbox.Button>
-                      <Listbox.Options
-                        as="ul"
-                        className={`absolute z-10 mt-2 w-full py-1 bg-white border border-gray-300 rounded-md shadow-lg ${
-                          open ? 'block' : 'hidden'
-                        }`}
-                      >
-
-                        {sources.map((source) => (
-                          <Listbox.Option key={source} value={source}>
-                            {({ active, selected }) => (
-                              <li
-                                className={`cursor-pointer select-none relative px-3 py-2 ${
-                                  active ? 'bg-indigo-600 text-white' : 'text-gray-900'
-                                }`}
-                              >
-                                {selected && (
-                                  <span
-                                    className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
-                                      active ? 'text-white' : 'text-indigo-600'
-                                    }`}
-                                  >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="w-5 h-5"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M6.293 9.293a1 1 0 011.414 0L10 11.586l2.293-2.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </span>
-                                )}
-                                {source}
-                              </li>
-                            )}
-                          </Listbox.Option>
-                        ))}
-                      </Listbox.Options>
-                    </div>
-                  )}
-                </Listbox>
-              </div>
-
-              <button className='w-full bg-secondary text-white p-2 rounded'>Demander mon rendez-vous</button>
-            </form>
           </div>
         </div>
-      )}
-
-
-      {showAppointmentModalStep === 2 && (
-        <>
-        // Show the calendly appointment
-        // ... Your calendly code here ...
-        </>
       )}
 
       {/* Module 2 - Page de bienvenue */}
       <section className='py-20'>
         <div className='max-w-2xl mx-auto text-center'>
           <video controls className='w-full mb-8'>
-            <source src='/path_to_video.mp4' type='video/mp4' />
+            {/*<source src='/path_to_video.mp4' type='video/mp4' />*/}
           </video>
           <h2 className='text-2xl mb-4'>Eva URRESTARAZU - Thérapeute Holistique</h2>
           <p className='text-gray-600'>Je suis Thérapeute Holistique.
